@@ -1,0 +1,3 @@
+Select song in playlist and press play: 
+1. Send player command to play this song from the beggining.
+

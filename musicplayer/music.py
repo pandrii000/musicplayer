@@ -1,6 +1,6 @@
 from time import sleep
 import os
-import threading
+from threading import Thread, Event
 import pyaudio
 import datetime
 from pydub import AudioSegment
@@ -8,95 +8,129 @@ from pydub.utils import make_chunks
 import re
 
 
-# Artist - Title .mp3/.wav 
-SONG_PATTERN = r'([^\-]+)\-([^\-]+)\.(mp3|wav)'
 # general music pattern
 MUSIC_PATTERN = r'.+\.(mp3|wav)'
 
+# Artist - Title .mp3/.wav
+SONG_PATTERN = r'([^\-]+)\-([^\-]+)\.(mp3|wav)'
 
-class PlaylistElement(dict):
+
+class PlaylistElement:
     def __init__(self, filepath):
-        super(PlaylistElement, self).__init__()
-        self['filepath'] = filepath
-        self['filename'] = filepath.split(os.path.sep)[-1]
-        m = re.match(SONG_PATTERN, self['filename'])
+        self._properties = {
+            'filepath': '',
+            'filename': '',
+            'artist': '',
+            'title': '',
+            'format': ''
+        }
+
+        self._properties['filepath'] = filepath
+        self._properties['filename'] = filepath.split(os.path.sep)[-1]
+
+        m = re.match(SONG_PATTERN, self._properties['filename'])
         if m:
-            self['artist'] = m.group(1).strip()
-            self['title'] = m.group(2).strip()
-            self['format'] = m.group(3).strip()
+            self._properties['artist'] = m.group(1).strip()
+            self._properties['title'] = m.group(2).strip()
+            self._properties['format'] = m.group(3).strip()
+
+    def get_properties(self):
+        return self._properties
+
+    def __getitem__(self, key):
+        return self._properties[key]
 
 
 class Playlist:
     def __init__(self, name='Default'):
         self.name = name
-        self.songs = []
+        self.elements = []
         self.index = -1
         self.modified_date = datetime.datetime.now()
 
-    def current(self):
-        return self.songs[self.index]
-
-    def next(self):
-        self.index += 1
-        return self.songs[self.index]
+    def add_file(self, filepath):
+        element = PlaylistElement(filepath)
+        self.elements.append(element)
 
     def sync_with_directory(self, directory_path):
         for root, dirs, files in os.walk(directory_path):
             for filename in files:
                 if re.match(MUSIC_PATTERN, filename):
                     filepath = os.path.join(root, filename)
-                    element = PlaylistElement(filepath)
-                    self.songs.append(element)
+                    self.add_file(filepath)
+
+    def current(self):
+        return self.songs[self.index]
+
+    def has_next(self):
+        return self.index + 1 < len(self.elements)
+
+    def get_next(self):
+        self.index += 1
+        return self.elements[self.index]
 
 
 class MusicPlayer:
-    def __init__(self):
+    def __init__(self, volume=100):
         self.playlist = Playlist()
         self.player = pyaudio.PyAudio()
-        self.playing = False
 
-        self.volume = 100
-        self.playing_song = None
-        self.time = 0
-        self.song_duration = 0
+        self.is_playing = Event()
+        self.is_playing.clear()
 
-    def play(self):
-        if not self.playing:
-            self.playing = True
-            t = threading.Thread(target=self._play)
-            t.start()
+        self.time_played = 0
+        self.time_length = 0
+        self.volume = volume
 
-    def _play(self):
-        while self.playing:
-            try:
-                self.playing_song = self.playlist.next()
-            except IndexError:
-                self.playing = False
-                break
-
-            sound = AudioSegment.from_file(self.playing_song['filepath'])
-            stream = self.player.open(format=self.player.get_format_from_width(sound.sample_width),
-                                channels=sound.channels,
-                                rate=sound.frame_rate,
-                                output=True)
-
-            self.time = 0
-            self.song_duration = sound.duration_seconds
-            playchunk = sound[self.time*1000.0:(self.time+self.song_duration) * 1000.0] - (60 - (60 * (self.volume/100.0)))
-            # playchunk = sound[self.time*1000.0:(self.time+self.song_duration) * 1000.0] - (60 - (60 * (self.volume/100.0)))
-            millisecondchunk = 50 / 1000.0
-
-            for chunks in make_chunks(playchunk, millisecondchunk*1000):
-                self.time += millisecondchunk
-                stream.write(chunks._data)
-                if not self.playing:
-                    break
-                if self.time >= self.song_duration:
-                    break
+        self._plating_thread = Thread(target=self._play)
+        self._plating_thread.start()
 
     def stop(self):
-        """Stop playback."""
-        self.playing = False
+        self.time_played = 0
+        self.is_playing.clear()
+
+    def pause(self):
+        self.is_playing.clear()
+    
+    def play(self):
+        self.is_playing.set()
+
+    def _play(self):
+        # wait for is_playing state
+        self.is_playing.wait()
+
+        while self.playlist.has_next():
+            # wait for is_playing state
+            self.is_playing.wait()
+
+            # get next song in playlist
+            playing_song = self.playlist.get_next()
+
+            # read sound data
+            sound = AudioSegment.from_file(playing_song['filepath'])
+
+            # open stream
+            stream = self.player.open(
+                format=self.player.get_format_from_width(sound.sample_width),
+                channels=sound.channels, 
+                rate=sound.frame_rate,
+                output=True
+                )
+
+            # length of song in seconds for one writing to stream
+            chunk_length = 50 / 1000
+
+            # playing song
+            self.time_length = self.sound.duration_seconds
+            while self.time_played < self.time_length:
+                self.playing.wait()
+                _data = sound[]
+                self.stream.write(chunk._data)
+                self.time += chunk_length / 1000
+
+            stream.stop_stream()
+            stream.close()
+            # player.terminate()
 
     def set_volume(self, value):
         """from 0 to 100."""
@@ -109,26 +143,23 @@ def stop_playlist(playlist, time):
 
 
 def test1():
+    player = MusicPlayer()
+
     playlist = Playlist()
     playlist.sync_with_directory('./')
-    playlist.songs.sort(key=lambda el: el['filename'])
 
-    player = MusicPlayer()
     player.playlist = playlist
     player.play()
-    
-    sleep(1)
-    player.set_volume(80)
-    
+
     # while player.playing:
-        # print(f"File: {player.playing_song['filename']} Time: {player.time} / {player.song_duration} Volume: {player.volume}")
+    # sleep(1)
+    # player.set_volume(80)
+    # print(f"File: {player.playing_song['filename']} Time: {player.time} / {player.song_duration} Volume: {player.volume}")
 
 
 if __name__ == '__main__':
-    test1()    
+    test1()
     # sleep(2)
     # sleep(2)
     # sleep(2)
     # player.stop()
-
-
