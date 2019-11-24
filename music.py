@@ -56,7 +56,6 @@ class Playlist:
         for root, dirs, files in os.walk(directory_path):
             for filename in files:
                 if re.match(MUSIC_PATTERN, filename):
-                    print(root, dirs, files)
                     filepath = os.path.join(root, filename)
                     self.add_file(filepath)
 
@@ -77,151 +76,77 @@ class Playlist:
         return iter(self.elements)
 
     def __getitem__(self, index):
-        return self.elements[index ]
+        return self.elements[index]
 
 
 # class MusicPlayer:
 #     def __init__(self, volume=100):
-#         self.playlist = Playlist()
-#         self.player = pyaudio.PyAudio()
+#         self.player = None
+#         self.stream = None
+#         self.volume = volume
+#         self.time = 0
+#         self.length = 0
 
 #         self.is_playing = Event()
-#         self.is_playing.clear()
+#         self.is_playing.set()  
 
-#         self.time_played = 0
-#         self.time_length = 0
-#         self.volume = volume
+#         self.repeat = False
 
-#         self._plating_thread = Thread(target=self._play)
-#         self._plating_thread.start()
+#     def play(self, filepath):
+#         self.is_playing.set()
 
-#     def stop(self):
-#         self.time_played = 0
-#         self.is_playing.clear()
+#         thread = Thread(target=self._play, args=(filepath,))
+#         thread.start()
+
+#     def _play(self, filepath):        
+#         sound = AudioSegment.from_file(filepath)
+#         self.player = pyaudio.PyAudio()
+    
+#         self.stream = self.player.open(format = self.player.get_format_from_width(sound.sample_width),
+#             channels = sound.channels,
+#             rate = sound.frame_rate,
+#             output = True)
+
+#         self.length = sound.duration_seconds
+#         playchunk = sound[self.time*1000.0:(self.length)*1000.0]
+#         millisecondchunk = 10 / 1000.0
+        
+#         for chunks in make_chunks(playchunk, millisecondchunk*1000):
+#             self.is_playing.wait()
+
+#             self.time += millisecondchunk
+#             self.stream.write((chunks - (60 - (60 * (self.volume/100.0))))._data)
+#             if self.time >= self.length:
+#                 break
+
+#         self.stream.close()
+#         self.player.terminate()
 
 #     def pause(self):
 #         self.is_playing.clear()
-    
-#     def play(self):
-#         self.is_playing.set()
 
-#     def _play(self):
-#         # wait for is_playing state
-#         self.is_playing.wait()
-
-#         while self.playlist.has_next():
-#             # wait for is_playing state
-#             self.is_playing.wait()
-
-#             # get next song in playlist
-#             playing_song = self.playlist.get_next()
-
-#             # read sound data
-#             sound = AudioSegment.from_file(playing_song['filepath'])
-
-#             # open stream
-#             stream = self.player.open(
-#                 format=self.player.get_format_from_width(sound.sample_width),
-#                 channels=sound.channels, 
-#                 rate=sound.frame_rate,
-#                 output=True
-#                 )
-
-#             # length of song in seconds for one writing to stream
-#             chunk_length = 50 / 1000
-
-#             # playing song
-#             # self.time_length = self.sound.duration_seconds
-#             # while self.time_played < self.time_length:
-#             #     self.playing.wait()
-#             #     # _data = sound[]
-#             #     self.stream.write(chunk._data)
-#             #     self.time += chunk_length / 1000
-
-#             stream.stop_stream()
-#             stream.close()
-#             # player.terminate()
+#     def stop(self):
+#         self.pause()
+#         self.stream.close()
+#         self.player.terminate()
 
 #     def set_volume(self, value):
 #         """from 0 to 100."""
 #         self.volume = value
 
-
-# def stop_playlist(playlist, time):
-#     sleep(time)
-#     playlist.stop()
-
-
-# def test1():
-#     player = MusicPlayer()
-
-#     playlist = Playlist()
-#     playlist.sync_with_directory('./')
-
-#     player.playlist = playlist
-#     player.play()
-
-#     # while player.playing:
-#     # sleep(1)
-#     # player.set_volume(80)
-#     # print(f"File: {player.playing_song['filename']} Time: {player.time} / {player.song_duration} Volume: {player.volume}")
-
-
-# if __name__ == '__main__':
-#     test1()
-#     # sleep(2)
-#     # sleep(2)
-#     # sleep(2)
-#     # player.stop()
+import pygame 
 
 class MusicPlayer:
     def __init__(self, volume=100):
-        self.player = pyaudio.PyAudio()
+        pygame.mixer.init()
+        self.volume = volume
 
-        self.is_playing = Event()
-        self.is_playing.set()  
-
-        self.repeat = False
-    
     def play(self, filepath):
-        self.is_playing.set()
+        pygame.mixer.music.load(filepath)
+        pygame.mixer.music.play()
 
-        thread = Thread(target=self._play, args=(filepath,))
-        thread.start()
-
-    def _play(self, filepath):        
-        sound = AudioSegment.from_file(filepath)
-        player = pyaudio.PyAudio()
-    
-        stream = player.open(format = player.get_format_from_width(sound.sample_width),
-            channels = sound.channels,
-            rate = sound.frame_rate,
-            output = True)
-
-        start = 0
-        length = sound.duration_seconds
-        volume = 100.0
-        playchunk = sound[start*1000.0:(start+length)*1000.0] - (60 - (60 * (volume/100.0)))
-        millisecondchunk = 50 / 1000.0
-        
-        time = start
-        for chunks in make_chunks(playchunk, millisecondchunk*1000):
-            self.is_playing.wait()
-
-            time += millisecondchunk
-            stream.write(chunks._data)
-            if time >= start+length:
-                break
-
-        stream.close()
-        player.terminate()
-
-    def pause(self):
-        self.is_playing.clear()
-
-    def stop(self):
-        self.is_playing.clear()
-
-    def set_volume(self, value):
-        """from 0 to 100."""
-        self.volume = value
+if __name__ == '__main__':
+    filepath = 'In The End (Official Video) - Linkin Park.mp3'
+    m = MusicPlayer()
+    m.play(filepath)
+    sleep(200)
