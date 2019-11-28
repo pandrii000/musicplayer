@@ -13,7 +13,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Music Player")
         self.setMinimumSize(800, 500)
         
-        # MOVE TO THE CENTER OF THE SCREEN
+        # move to the center of the screen
         qtRectangle = self.frameGeometry()
         centerPoint = QDesktopWidget().availableGeometry().center()
         qtRectangle.moveCenter(centerPoint)
@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
              - can play .mp3 and .wav files
              - search for a music in a directory recursively
              - import and export playlists
-             - show this window ;)
+             - show this window 
             ''')
         msg.exec_()
 
@@ -319,10 +319,3 @@ class MainWindow(QMainWindow):
             else:
                 self.pause_button.toggle()
                 self.app.resume()
-                
-
-if __name__ == "__main__":
-    app = QApplication([])
-    window = MainWindow(None)
-    window.show()
-    app.exec_()

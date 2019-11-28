@@ -73,8 +73,4 @@ class PlayerApplication:
 
 if __name__ == '__main__':
     app = PlayerApplication()
-    playlist = Playlist()
-    playlist.add_from_directory('./')
-    app.playlist = playlist
-    app.mainwindow.update_playlist_widget()
     app.start()
